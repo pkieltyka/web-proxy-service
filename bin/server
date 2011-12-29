@@ -1,0 +1,47 @@
+#!/usr/bin/env ruby
+
+ROOT_PATH   = File.expand_path('../..', __FILE__)
+CONFIG_PATH = File.expand_path('config', ROOT_PATH)
+LIB_PATH    = File.expand_path('lib', ROOT_PATH)
+LOG_PATH    = File.expand_path('log', ROOT_PATH)
+
+CONFIG_FILE = "#{CONFIG_PATH}/application.rb"
+LOG_FILE    = "#{LOG_PATH}/server.log"
+PID_FILE    = "#{ROOT_PATH}/tmp/server.pid"
+
+$: << ROOT_PATH << LIB_PATH
+
+require 'rubygems'
+require 'bundler'
+Bundler.setup
+
+require 'goliath/runner'
+require 'goliath/api'
+require 'goliath/rack'
+
+require 'web-proxy-service'
+
+DEFAULT_OPTIONS = {
+  :config     => CONFIG_FILE,
+  :log_file   => LOG_FILE,
+  :pid_file   => PID_FILE,
+  :env        => :development,
+  :address    => '0.0.0.0',
+  :port       => 9000,
+  :daemonize  => false,
+  :verbose    => false,
+  :log_stdout => false
+}
+
+class WebProxyService::Router
+  def options_parser(opts, options)
+    options.merge!(DEFAULT_OPTIONS)
+  end
+end
+
+klass = WebProxyService::Router
+api = klass.new
+runner = Goliath::Runner.new(ARGV, api)
+runner.app = Goliath::Rack::Builder.build(klass, api)
+runner.load_plugins(klass.plugins)
+runner.run
